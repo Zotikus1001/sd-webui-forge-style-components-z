@@ -27,7 +27,6 @@ opIPAdapterApply = IPAdapterApply().apply_ipadapter
 N_COMPONENTS_MAX = 200
 style_models_path = os.path.join(models_path, "StyleAdapter")
 
-
 def path_from_url_or_local(p: str):
     return (
         load_file_from_url(
@@ -37,7 +36,6 @@ def path_from_url_or_local(p: str):
         if p.startswith("http")
         else p
     )
-
 
 def load_ip(adapter_path: str):
     so = safe_open(adapter_path, "pt")
@@ -49,8 +47,6 @@ def load_ip(adapter_path: str):
 
 
 class ControlNetExampleForge(scripts.Script):
-    model = None
-
     def load_config(self, config_name: str):
         self.ip_state_dict_cached = None
         self.style_extractor_cached = None
@@ -99,6 +95,10 @@ class ControlNetExampleForge(scripts.Script):
         self.pca_cached = None
         self.ip_state_dict_cached = None
         self.style_extractor_cached = None
+        self.n_components = None
+        self.config = None
+        # Auto-load the v0_3 configuration
+        self.load_config("v0_3")
 
     def title(self):
         return "Style components XL"
@@ -120,7 +120,9 @@ class ControlNetExampleForge(scripts.Script):
 
         with gr.Accordion(open=False, label=self.title()):
             configs = gr.Dropdown(
-                [*STYLE_COMPONENTS_CONFIGS], label="Style components config"
+                [*STYLE_COMPONENTS_CONFIGS], 
+                label="Style components config",
+                value="v0_3"  # Set default value to v0_3
             )
             with gr.Column(visible=False) as main:
                 enable = gr.Checkbox(label="Enable")
@@ -287,6 +289,10 @@ class ControlNetExampleForge(scripts.Script):
         if not enable:
             self.unload_models()
             return
+        
+        if self.n_components is None:
+            raise ValueError("Configuration not loaded. Please load a configuration before sampling.")
+        
         x0 = np.array(
             [round(x * mult, 2) for x in sliders[: self.n_components]], dtype=float
         )
@@ -315,11 +321,9 @@ class ControlNetExampleForge(scripts.Script):
             )
         )
 
-
 def randn_to_style(pca, x):
     pca, std = pca
     return x * std[: pca.n_components] @ pca.components_ + pca.mean_
-
 
 def style_to_randn(pca, y):
     pca, std = pca
